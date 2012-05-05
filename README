@@ -1,0 +1,12 @@
+Compiling the program:
+make
+
+Dependencies: clang
+
+If you use gcc instead of clang, change CC=clang to CC=gcc in the Makefile
+
+Running the server:
+./project3 -s
+
+Running the client: 
+./project3 -h (help menu)

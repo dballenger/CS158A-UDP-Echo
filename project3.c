@@ -56,6 +56,7 @@ int main(int argc, char *argv[])
         printf("%s -d -- enable debugging\n", argv[0]);
         printf("%s -b -- set packet size in bytes\n", argv[0]);
         printf("%s -q -- how many packets to send\n", argv[0]);
+        printf("%s -a -- IP address of the server\n", argv[0]);
         break;
       case 'd':
         printf("Enabling debugging\n");
