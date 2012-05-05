@@ -169,14 +169,6 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
   double total_time_for_packets = 0.0;
   
   /**
-  gettimeofday(&packet_sent_time, 0);
-  gettimeofday(&packet_received_time, 0);
-  total_time_for_packets = timespecDiff(&packet_received_time, &packet_sent_time);
-  printf("Time taken: %f", total_time_for_packets);
-  exit(0);
-  **/
-  
-  /**
    Setup the socket
   */
   int socket_size = 0, the_socket = 0, received_length = 0;
