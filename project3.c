@@ -6,7 +6,8 @@
 
 #include <string.h>
 
-#include <time.h>
+#include <sys/time.h>
+// #include <time.h>
 
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -107,83 +108,21 @@ int main(int argc, char *argv[])
 */
 void run_server(int port_number)
 {
-  int the_socket = 0, connection_socket = 0, status = 0;
+  int the_socket = 0, status = 0;
   struct sockaddr_in server, client;
   char receive_buffer[(1 << 16)] = {0};
   
   // if we want TCP, we would change the second argument to SOCK_STREAM
   // ipv6 support is PF_INET6
   the_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  CHECK_SOCKET_STATUS(the_socket);
   
   server.sin_family = PF_INET;
   server.sin_addr.s_addr = INADDR_ANY;
   server.sin_port = htons(port_number);
   
-  if(the_socket == -1)
-  {
-    switch(errno)
-    {
-      case EPROTONOSUPPORT:
-        fprintf(stderr, "Protocol type not supported within this domain.\n");
-      break;
-      
-      case EMFILE:
-        fprintf(stderr, "Per-process descriptor table is full.\n");
-      break;
-      
-      case ENFILE:
-        fprintf(stderr, "System file table is full.\n");
-      break;
-      
-      case EACCES:
-        fprintf(stderr, "Permission to create socket of PF_INET type and SOCK_DGRAM protocol denied.\n");
-      break;
-      
-      case ENOBUFS:
-        fprintf(stderr, "Insufficient buffer space available.  Free sufficient system resources first.\n");
-      break;
-    }
-    
-    exit(EXIT_FAILURE);
-  }
-  
   status = bind(the_socket, (struct sockaddr *)&server, sizeof(struct sockaddr));
-  
-  if(status != 0)
-  {
-    switch(errno)
-    {
-      case EAGAIN:
-        fprintf(stderr, "Kernel resources needed temporarily unavailable.\n");
-      break;
-      
-      case EBADF:
-        fprintf(stderr, "Socket was not a valid descriptor.\n"); //should never get this one
-      break;
-      
-      case ENOTSOCK:
-        fprintf(stderr, "Socket variable not a valid socket.\n"); //never get this either
-      break;
-      
-      case EADDRNOTAVAIL:
-        fprintf(stderr, "The given address is not available on this machine.\n");
-      break;
-      
-      case EADDRINUSE:
-        fprintf(stderr, "Address is already in use.\n");
-      break;
-      
-      case EACCES:
-        fprintf(stderr, "Permission to bind to socket denied.\n");
-      break;
-      
-      case EFAULT:
-        fprintf(stderr, "Given addr argument not valid part of user address space.\n");
-      break;
-    }
-    
-    exit(EXIT_FAILURE);
-  }
+  CHECK_BIND_STATUS(status);
   
   printf("Socket bound, server is ready to receive packets\n");
   
@@ -195,45 +134,11 @@ void run_server(int port_number)
     memset(receive_buffer, '\0', 1 << 16);
     
     length = recvfrom(the_socket, receive_buffer, (sizeof(receive_buffer) - 1), 0, (struct sockaddr *)&client, &socket_size);
+    CHECK_RECEIVE_STATUS(length);
     
     if (debug == 1) {
       fprintf(stderr, "Received packet of size %i\n", length);
       fprintf(stderr, "Message received: %s\n", receive_buffer);
-    }
-    
-    if(length == -1)
-    {
-      switch(errno)
-      {
-        case EBADF:
-          fprintf(stderr, "Socket var not a valid descriptor\n");
-        break;
-        
-        case ECONNRESET:
-          fprintf(stderr, "Connection reset\n");
-        break;
-        
-        case ENOTCONN:
-          fprintf(stderr, "Socket not connected\n");
-        break;
-        
-        case ENOTSOCK:
-          fprintf(stderr, "Given socket var does not refer to a socket\n");
-        break;
-        
-        case EAGAIN:
-          fprintf(stderr, "Socket marked as non-blocked, recv operation would block\n");
-        break;
-        
-        case EINTR:
-          fprintf(stderr, "Recv interrupted before any data came\n");
-        break;
-        
-        case EFAULT:
-          fprintf(stderr, "Recv buffer pointer points outside processes' address space\n");
-        break;
-      }
-      exit(EXIT_FAILURE); // maybe should be continue 
     }
     
     /**
@@ -258,6 +163,20 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
   }
   
   /**
+   Metric statistics
+  */
+  struct timeval packet_sent_time, packet_received_time;
+  double total_time_for_packets;
+  
+  /**
+  gettimeofday(&packet_sent_time, 0);
+  gettimeofday(&packet_received_time, 0);
+  total_time_for_packets = timespecDiff(&packet_received_time, &packet_sent_time);
+  printf("Time taken: %f", total_time_for_packets);
+  exit(0);
+  **/
+  
+  /**
    Setup the socket
   */
   int socket_size = 0, the_socket = 0, status = 0;
@@ -269,82 +188,26 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
   // if we want TCP, we would change the second argument to SOCK_STREAM
   // ipv6 support is PF_INET6
   the_socket = socket(PF_INET, SOCK_DGRAM, 17);
+  CHECK_SOCKET_STATUS(the_socket);
   
+  /**
+   The socket to connect to the server
+  */
   remote.sin_family = PF_INET;
   remote.sin_addr.s_addr = address;
   remote.sin_port = htons(port_number);
   
-  if(the_socket == -1)
-  {
-    switch(errno)
-    {
-      case EPROTONOSUPPORT:
-        fprintf(stderr, "Protocol type not supported within this domain.\n");
-      break;
-      
-      case EMFILE:
-        fprintf(stderr, "Per-process descriptor table is full.\n");
-      break;
-      
-      case ENFILE:
-        fprintf(stderr, "System file table is full.\n");
-      break;
-      
-      case EACCES:
-        fprintf(stderr, "Permission to create socket of PF_INET type and SOCK_DGRAM protocol denied.\n");
-      break;
-      
-      case ENOBUFS:
-        fprintf(stderr, "Insufficient buffer space available.  Free sufficient system resources first.\n");
-      break;
-    }
-    
-    exit(EXIT_FAILURE);
-  }
-  
+  /**
+   The local socket settings
+  */
   local.sin_family = AF_INET;
   local.sin_addr.s_addr = htonl(INADDR_ANY);
   local.sin_port = htons(0);
   
   status = bind(the_socket, (struct sockaddr *)&local, socket_size);
+  CHECK_BIND_STATUS(status);
   
-  if(status != 0)
-  {
-    switch(errno)
-    {
-      case EAGAIN:
-        fprintf(stderr, "Kernel resources needed temporarily unavailable.\n");
-      break;
-      
-      case EBADF:
-        fprintf(stderr, "Socket was not a valid descriptor.\n"); //should never get this one
-      break;
-      
-      case ENOTSOCK:
-        fprintf(stderr, "Socket variable not a valid socket.\n"); //never get this either
-      break;
-      
-      case EADDRNOTAVAIL:
-        fprintf(stderr, "The given address is not available on this machine.\n");
-      break;
-      
-      case EADDRINUSE:
-        fprintf(stderr, "Address is already in use.\n");
-      break;
-      
-      case EACCES:
-        fprintf(stderr, "Permission to bind to socket denied.\n");
-      break;
-      
-      case EFAULT:
-        fprintf(stderr, "Given addr argument not valid part of user address space.\n");
-      break;
-    }
-    
-    exit(EXIT_FAILURE);
-  }
-  
-  int length = 0;
+  int length = (packet_size - 1);
   socklen_t server_size = sizeof(remote);
   
   /**
@@ -357,11 +220,15 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
     
     memset(receive_buffer, '\0', 1 << 16);
     
-    for (register int i = 0; i < (packet_size - 1); i++) {
+    for (register int i = 0; i < length; i++) {
       receive_buffer[i] = 'b'; // generate "random" payload data
     }
     
-    sendto(the_socket, receive_buffer, packet_size, 0, (struct sockaddr *)&remote, socket_size);
+    /**
+     Track the time immediately before we send the payload
+    */
+    gettimeofday(&packet_sent_time, 0);
+    sendto(the_socket, receive_buffer, length + 1, 0, (struct sockaddr *)&remote, server_size);
     
     memset(receive_buffer, '\0', 1 << 16); // clear out the receive buffer
     
@@ -369,7 +236,10 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
       fprintf(stderr, "Waiting to receive\n");
     }
     
-    recvfrom(the_socket, receive_buffer, 1 << 16, 0, (struct sockaddr *)&echo, (socklen_t *)socket_size);
+    recvfrom(the_socket, receive_buffer, length + 1, 0, (struct sockaddr *)&echo, (socklen_t *)socket_size);
+    //CHECK_RECEIVE_STATUS(length);
+    gettimeofday(&packet_received_time, 0);
+    total_time_for_packets += timespecDiff(&packet_received_time, &packet_sent_time);
     
     if (debug == 1) {
       fprintf(stderr, "Received message: %s\n", receive_buffer);
@@ -379,4 +249,15 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
   if (debug == 1) {
     fprintf(stderr, "sending a receiving all done\n");
   }
+  
+  printf("Total time taken to send and receive: %f\n\n", total_time_for_packets);
+}
+
+/**
+ Determine the difference in time to tell how long it took round trip for a packet
+*/
+double timespecDiff(struct timeval *end, struct timeval *start)
+{
+ return (double)(((end->tv_sec * SECONDS_TO_NANOSECONDS) + end->tv_usec) -
+          ((start->tv_sec * SECONDS_TO_NANOSECONDS) + start->tv_usec)) / SECONDS_TO_NANOSECONDS;
 }
