@@ -131,13 +131,13 @@ void run_server(int port_number)
   
   while(1)
   {
-    memset(receive_buffer, '\0', 1 << 16);
+    bzero(receive_buffer, 1 << 16);
     
     length = recvfrom(the_socket, receive_buffer, (sizeof(receive_buffer) - 1), 0, (struct sockaddr *)&client, &socket_size);
     CHECK_RECEIVE_STATUS(length);
     
     if (debug == 1) {
-      fprintf(stderr, "Received packet of size %i\n", length);
+      fprintf(stderr, "Got a datagram from %s port %d of length %d\n", inet_ntoa(client.sin_addr), ntohs(client.sin_port), length);
       fprintf(stderr, "Message received: %s\n", receive_buffer);
     }
     
@@ -166,7 +166,7 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
    Metric statistics
   */
   struct timeval packet_sent_time, packet_received_time;
-  double total_time_for_packets;
+  double total_time_for_packets = 0.0;
   
   /**
   gettimeofday(&packet_sent_time, 0);
@@ -179,14 +179,13 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
   /**
    Setup the socket
   */
-  int socket_size = 0, the_socket = 0, status = 0, received_length = 0;
-  struct sockaddr_in local, remote, echo;
-  char *receive_buffer = NULL;
+  int socket_size = 0, the_socket = 0, received_length = 0;
+  struct sockaddr_in remote;
+  char receive_buffer[128000];
   
   /**
    Initialize the receive buffer
   */
-  receive_buffer = (char *)malloc(packet_size << 1);
   bzero(receive_buffer, packet_size + 1);
   
   socket_size = sizeof(struct sockaddr_in);
@@ -202,16 +201,6 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
   remote.sin_family = PF_INET;
   remote.sin_addr.s_addr = address;
   remote.sin_port = htons(port_number);
-  
-  /**
-   The local socket settings
-  */
-  local.sin_family = AF_INET;
-  local.sin_addr.s_addr = htonl(INADDR_ANY);
-  local.sin_port = htons(0);
-  
-  status = bind(the_socket, (struct sockaddr *)&local, socket_size);
-  CHECK_BIND_STATUS(status);
   
   // we want to leave one byte for the null at the end
   int length = (packet_size - 1);
@@ -241,14 +230,14 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
       fprintf(stderr, "Waiting to receive\n");
     }
     
-    received_length = recvfrom(the_socket, receive_buffer, packet_size, MSG_WAITALL, (struct sockaddr *)&echo, (socklen_t *)socket_size);
+    received_length = recvfrom(the_socket, receive_buffer, packet_size, MSG_WAITALL, NULL, NULL);
     CHECK_RECEIVE_STATUS(received_length);
     
     gettimeofday(&packet_received_time, 0);
     total_time_for_packets += timespecDiff(&packet_received_time, &packet_sent_time);
     
     if (debug == 1) {
-      fprintf(stderr, "Received message: %s\n", receive_buffer);
+      fprintf(stderr, "Received message: %s\nRound trip delay: %f\n", receive_buffer, timespecDiff(&packet_received_time, &packet_sent_time));
     }
   }
   
