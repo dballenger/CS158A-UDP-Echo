@@ -14,7 +14,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#include <signal.h>
+#include <signal.h> // not needed at this time
 
 #include "project3.h"
 
@@ -179,15 +179,21 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
   /**
    Setup the socket
   */
-  int socket_size = 0, the_socket = 0, status = 0;
+  int socket_size = 0, the_socket = 0, status = 0, received_length = 0;
   struct sockaddr_in local, remote, echo;
-  char receive_buffer[(1 << 16)] = {0};
+  char *receive_buffer = NULL;
+  
+  /**
+   Initialize the receive buffer
+  */
+  receive_buffer = (char *)malloc(packet_size << 1);
+  bzero(receive_buffer, packet_size + 1);
   
   socket_size = sizeof(struct sockaddr_in);
   
   // if we want TCP, we would change the second argument to SOCK_STREAM
   // ipv6 support is PF_INET6
-  the_socket = socket(PF_INET, SOCK_DGRAM, 17);
+  the_socket = socket(PF_INET, SOCK_DGRAM, 0);
   CHECK_SOCKET_STATUS(the_socket);
   
   /**
@@ -207,6 +213,7 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
   status = bind(the_socket, (struct sockaddr *)&local, socket_size);
   CHECK_BIND_STATUS(status);
   
+  // we want to leave one byte for the null at the end
   int length = (packet_size - 1);
   socklen_t server_size = sizeof(remote);
   
@@ -218,8 +225,7 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
       fprintf(stderr, "Sending packet %i of size %i bytes\n", i, packet_size);
     }
     
-    memset(receive_buffer, '\0', 1 << 16);
-    
+    bzero(receive_buffer, packet_size);
     for (register int i = 0; i < length; i++) {
       receive_buffer[i] = 'b'; // generate "random" payload data
     }
@@ -228,16 +234,16 @@ void run_client(in_addr_t address, int port_number, int packets, int packet_size
      Track the time immediately before we send the payload
     */
     gettimeofday(&packet_sent_time, 0);
-    sendto(the_socket, receive_buffer, length + 1, 0, (struct sockaddr *)&remote, server_size);
-    
-    memset(receive_buffer, '\0', 1 << 16); // clear out the receive buffer
+    sendto(the_socket, receive_buffer, packet_size, 0, (struct sockaddr *)&remote, server_size);
+    bzero(receive_buffer, packet_size); // clear out the receive buffer
     
     if (debug == 1) {
       fprintf(stderr, "Waiting to receive\n");
     }
     
-    recvfrom(the_socket, receive_buffer, length + 1, 0, (struct sockaddr *)&echo, (socklen_t *)socket_size);
-    //CHECK_RECEIVE_STATUS(length);
+    received_length = recvfrom(the_socket, receive_buffer, packet_size, MSG_WAITALL, (struct sockaddr *)&echo, (socklen_t *)socket_size);
+    CHECK_RECEIVE_STATUS(received_length);
+    
     gettimeofday(&packet_received_time, 0);
     total_time_for_packets += timespecDiff(&packet_received_time, &packet_sent_time);
     
