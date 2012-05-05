@@ -1,6 +1,7 @@
 CC=clang
+CFLAGS=-Wall -Werror -pedantic -pipe
 
 all:
-	$(CC) -Wall -pipe project3.c -o project3
+	$(CC) $(CFLAGS) project3.c -o project3
 clean:
 	rm -fr *.o project3
