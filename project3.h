@@ -103,3 +103,8 @@ double timespecDiff(struct timeval *timeA_p, struct timeval *timeB_p);
   \
   exit(EXIT_FAILURE); \
 }
+
+#define DEBUG(...) if (debug == 1) { \
+  fprintf(stderr, __VA_ARGS__); \
+  fprintf(stderr, "\n"); \
+}
