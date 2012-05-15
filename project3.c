@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
   */
   int port_number = 65000, packets = 100, packet_size = 1 << 10;
   /*
-   The IP address to send to from the client
+    This is the IP address of the server
   */
   in_addr_t address;
   
@@ -81,14 +81,14 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
         break;
       default:
-        fprintf(stderr, "No options specified.  Must specify -c or -s for client or server\n");
+        fprintf(stderr, "No options specified.  Run %s -h for help and the options", argv[0]);
         exit(EXIT_FAILURE);
         break;
      }
   }
   
   if (server == 0 && client == 0) {
-    fprintf(stderr, "Must specify either client or server\n");
+    fprintf(stderr, "You must specify either client or server mode.  Run %s -h for help and the options", argv[0]);
     
     exit(EXIT_FAILURE);
   }
